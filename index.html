@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLUNGER Monitoring System</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ============================================
+        // FIREBASE CONFIG - GANTI DENGAN CONFIG ASLI ANDA
+        // ============================================
+        const FIREBASE_CONFIG = {
+              apiKey: "AIzaSyBAu7wDsnb9NcF2aHJPrsh21r1nNMYnWDE",
+              authDomain: "plunger-monitoring.firebaseapp.com",
+              databaseURL: "https://plunger-monitoring-default-rtdb.asia-southeast1.firebasedatabase.app",
+              projectId: "plunger-monitoring",
+              storageBucket: "plunger-monitoring.firebasestorage.app",
+              messagingSenderId: "334262322435",
+              appId: "1:334262322435:web:0fa820016884f183159536"
+        };
+
+        // Icons
+        const AlertCircle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        const CheckCircle = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+        );
+
+        const Clock = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        );
+
+        const Wrench = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+            </svg>
+        );
+
+        const TrendingUp = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+            </svg>
+        );
+
+        const History = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M3 3v5h5"></path>
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                <path d="M12 7v5l4 2"></path>
+            </svg>
+        );
+
+        const LogIn = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+        );
+
+        const LogOut = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+        );
+
+        const Lock = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+        );
+
+        const PLUNGERMonitoring = () => {
+            const PART_LIMITS = { RING: 20000, TIP: 120000, SLEEVE: 200000 };
+
+            const [isConfigured, setIsConfigured] = useState(false);
+            const [firebaseApp, setFirebaseApp] = useState(null);
+            const [user, setUser] = useState(null);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [authMode, setAuthMode] = useState('login');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(true);
+
+            const [machines, setMachines] = useState([]);
+            const [selectedMachine, setSelectedMachine] = useState(null);
+            const [shootInput, setShootInput] = useState('');
+            const [history, setHistory] = useState([]);
+            const [view, setView] = useState('dashboard');
+
+            useEffect(() => {
+                const initFirebase = async () => {
+                    if (FIREBASE_CONFIG.apiKey.startsWith("AIzaSyBAu7wDsnb9NcF2aHJPrsh21r1nNMYnWDE")) {
+                        setLoading(false);
+                        return;
+                    }
+
+                    try {
+                        const app = firebase.initializeApp(FIREBASE_CONFIG);
+                        setFirebaseApp(app);
+                        setIsConfigured(true);
+
+                        firebase.auth().onAuthStateChanged((user) => {
+                            setUser(user);
+                            setLoading(false);
+                            if (user) {
+                                loadData();
+                            }
+                        });
+                    } catch (err) {
+                        console.error('Firebase error:', err);
+                        setError('Gagal menginisialisasi Firebase');
+                        setLoading(false);
+                    }
+                };
+
+                initFirebase();
+            }, []);
+
+            const loadData = () => {
+                const db = firebase.database();
+
+                db.ref('machines').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        setMachines(Object.values(data));
+                    } else {
+                        initializeDefaultMachines();
+                    }
+                });
+
+                db.ref('history').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        setHistory(Object.values(data).sort((a, b) => 
+                            new Date(b.timestamp) - new Date(a.timestamp)
+                        ));
+                    }
+                });
+            };
+
+            const initializeDefaultMachines = () => {
+                const db = firebase.database();
+                const defaultMachines = Array.from({ length: 8 }, (_, i) => ({
+                    id: i + 1,
+                    name: `Mesin ${i + 1}`,
+                    parts: {
+                        RING: { shoots: 0, lastChanged: new Date().toISOString() },
+                        TIP: { shoots: 0, lastChanged: new Date().toISOString() },
+                        SLEEVE: { shoots: 0, lastChanged: new Date().toISOString() }
+                    },
+                    totalShoots: 0
+                }));
+
+                const updates = {};
+                defaultMachines.forEach(m => {
+                    updates[`machines/${m.id}`] = m;
+                });
+                db.ref().update(updates);
+            };
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                setError('');
+
+                try {
+                    if (authMode === 'login') {
+                        await firebase.auth().signInWithEmailAndPassword(email, password);
+                    } else {
+                        await firebase.auth().createUserWithEmailAndPassword(email, password);
+                    }
+                    setEmail('');
+                    setPassword('');
+                } catch (err) {
+                    if (err.code === 'auth/email-already-in-use') {
+                        setError('Email sudah terdaftar. Silakan login.');
+                    } else if (err.code === 'auth/invalid-email') {
+                        setError('Format email tidak valid.');
+                    } else if (err.code === 'auth/weak-password') {
+                        setError('Password minimal 6 karakter.');
+                    } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+                        setError('Email atau password salah.');
+                    } else {
+                        setError('Terjadi kesalahan. Silakan coba lagi.');
+                    }
+                }
+            };
+
+            const handleLogout = () => {
+                firebase.auth().signOut();
+            };
+
+            const addShoots = (machineId) => {
+                const shoots = parseInt(shootInput);
+                if (!shoots || shoots <= 0) return;
+
+                const db = firebase.database();
+                const machine = machines.find(m => m.id === machineId);
+
+                const updates = {
+                    [`machines/${machineId}/totalShoots`]: machine.totalShoots + shoots,
+                    [`machines/${machineId}/parts/RING/shoots`]: machine.parts.RING.shoots + shoots,
+                    [`machines/${machineId}/parts/TIP/shoots`]: machine.parts.TIP.shoots + shoots,
+                    [`machines/${machineId}/parts/SLEEVE/shoots`]: machine.parts.SLEEVE.shoots + shoots,
+                };
+
+                db.ref().update(updates);
+                setShootInput('');
+                setSelectedMachine(null);
+            };
+
+            const replacePart = (machineId, partName, isAbnormal = false) => {
+                const db = firebase.database();
+                const machine = machines.find(m => m.id === machineId);
+                const shoots = machine.parts[partName].shoots;
+                const timestamp = new Date().toISOString();
+
+                const updates = {
+                    [`machines/${machineId}/parts/${partName}/shoots`]: 0,
+                    [`machines/${machineId}/parts/${partName}/lastChanged`]: timestamp,
+                };
+
+                const historyRef = db.ref('history').push();
+                historyRef.set({
+                    id: historyRef.key,
+                    machineId,
+                    machineName: machine.name,
+                    part: partName,
+                    shoots,
+                    limit: PART_LIMITS[partName],
+                    isAbnormal,
+                    timestamp,
+                    user: user.email
+                });
+
+                db.ref().update(updates);
+                setSelectedMachine(null);
+            };
+
+            const getPartStatus = (shoots, limit) => {
+                const percentage = (shoots / limit) * 100;
+                if (percentage >= 90) return { color: 'bg-red-500', text: 'Urgent', Icon: AlertCircle };
+                if (percentage >= 70) return { color: 'bg-yellow-500', text: 'Segera', Icon: Clock };
+                return { color: 'bg-green-500', text: 'OK', Icon: CheckCircle };
+            };
+
+            const formatDate = (dateString) => {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+            };
+
+            const formatTime = (dateString) => {
+                const date = new Date(dateString);
+                return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            };
+
+            if (!isConfigured) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 flex items-center justify-center">
+                        <div className="max-w-2xl w-full bg-slate-800 rounded-xl p-8 border border-yellow-500">
+                            <div className="text-center mb-6">
+                                <Lock size={48} className="mx-auto mb-4 text-yellow-500" />
+                                <h1 className="text-2xl font-bold text-white mb-2">Konfigurasi Firebase Diperlukan</h1>
+                                <p className="text-slate-300">Edit file index.html dan masukkan Firebase Config Anda</p>
+                            </div>
+                            <div className="bg-slate-900 rounded-lg p-6 mb-6">
+                                <h2 className="text-white font-semibold mb-4">Langkah Setup:</h2>
+                                <ol className="text-slate-300 space-y-3 text-sm list-decimal list-inside">
+                                    <li>Buat project di <a href="https://console.firebase.google.com" target="_blank" className="text-blue-400 hover:underline">Firebase Console</a></li>
+                                    <li>Aktifkan Authentication (Email/Password)</li>
+                                    <li>Aktifkan Realtime Database</li>
+                                    <li>Set Database Rules (lihat di bawah)</li>
+                                    <li>Copy Firebase Config</li>
+                                    <li>Edit kode dan ganti placeholder FIREBASE_CONFIG</li>
+                                    <li>Upload ulang ke Netlify</li>
+                                </ol>
+                            </div>
+                            <div className="bg-slate-900 rounded-lg p-4">
+                                <h3 className="text-white font-semibold mb-2 text-sm">Database Rules:</h3>
+                                <pre className="text-green-400 text-xs overflow-x-auto bg-black p-3 rounded">
+{`{
+  "rules": {
+    "machines": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "history": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}`}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center">
+                        <div className="text-white text-center">
+                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+                            <p>Loading...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 flex items-center justify-center">
+                        <div className="max-w-md w-full">
+                            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700">
+                                <div className="text-center mb-8">
+                                    <Lock size={48} className="mx-auto mb-4 text-blue-500" />
+                                    <h1 className="text-3xl font-bold text-white mb-2">PLUNGER Monitoring</h1>
+                                    <p className="text-slate-400">System Monitoring Part PLUNGER</p>
+                                </div>
+                                <form onSubmit={handleAuth} className="space-y-4">
+                                    <div>
+                                        <label className="block text-slate-300 text-sm mb-2">Email</label>
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            placeholder="email@company.com"
+                                            required
+                                            className="w-full px-4 py-3 rounded-lg bg-slate-900 text-white border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-slate-300 text-sm mb-2">Password</label>
+                                        <input
+                                            type="password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="••••••••"
+                                            required
+                                            minLength={6}
+                                            className="w-full px-4 py-3 rounded-lg bg-slate-900 text-white border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                        />
+                                    </div>
+                                    {error && (
+                                        <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
+                                            {error}
+                                        </div>
+                                    )}
+                                    <button
+                                        type="submit"
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+                                    >
+                                        <LogIn size={20} />
+                                        {authMode === 'login' ? 'Login' : 'Daftar'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAuthMode(authMode === 'login' ? 'register' : 'login');
+                                            setError('');
+                                        }}
+                                        className="w-full text-blue-400 hover:text-blue-300 text-sm"
+                                    >
+                                        {authMode === 'login' ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Login'}
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (view === 'history') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+                        <div className="max-w-4xl mx-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <button
+                                    onClick={() => setView('dashboard')}
+                                    className="text-white flex items-center gap-2 hover:text-blue-400"
+                                >
+                                    ← Kembali
+                                </button>
+                                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                                    <History size={28} />
+                                    History
+                                </h1>
+                                <button
+                                    onClick={handleLogout}
+                                    className="text-slate-400 hover:text-red-400"
+                                >
+                                    <LogOut size={20} />
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                {history.length === 0 ? (
+                                    <div className="bg-slate-800 rounded-lg p-8 text-center text-slate-400">
+                                        Belum ada riwayat penggantian part
+                                    </div>
+                                ) : (
+                                    history.map(record => (
+                                        <div key={record.id} className="bg-slate-800 rounded-lg p-4 border-l-4 border-blue-500">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <h3 className="text-white font-semibold text-lg">{record.machineName}</h3>
+                                                    <p className="text-slate-400 text-sm">Part {record.part}</p>
+                                                </div>
+                                                {record.isAbnormal && (
+                                                    <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded">
+                                                        Abnormal
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                                <div>
+                                                    <p className="text-slate-400">Shoot Terpakai</p>
+                                                    <p className="text-white font-semibold">{record.shoots.toLocaleString()} / {record.limit.toLocaleString()}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-slate-400">Waktu</p>
+                                                    <p className="text-white font-semibold">{formatDate(record.timestamp)}</p>
+                                                    <p className="text-slate-400 text-xs">{formatTime(record.timestamp)}</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-500 text-xs mt-2">Oleh: {record.user}</p>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (selectedMachine) {
+                const machine = machines.find(m => m.id === selectedMachine);
+                if (!machine) {
+                    setSelectedMachine(null);
+                    return null;
+                }
+
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+                        <div className="max-w-2xl mx-auto">
+                            <button
+                                onClick={() => setSelectedMachine(null)}
+                                className="text-white mb-4 flex items-center gap-2 hover:text-blue-400"
+                            >
+                                ← Kembali
+                            </button>
+                            <div className="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
+                                <h2 className="text-2xl font-bold text-white mb-2">{machine.name}</h2>
+                                <div className="flex items-center gap-4 text-slate-300">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp size={20} />
+                                        <span>Total: {machine.totalShoots.toLocaleString()} shoot</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-blue-900/50 border border-blue-700 rounded-xl p-4 mb-6">
+                                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                                    <TrendingUp size={20} />
+                                    Tambah Shoot
+                                </h3>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        value={shootInput}
+                                        onChange={(e) => setShootInput(e.target.value)}
+                                        placeholder="Jumlah shoot"
+                                        className="flex-1 px-4 py-3 rounded-lg bg-slate-900 text-white border border-slate-600 focus:border-blue-500 focus:outline-none"
+                                    />
+                                    <button
+                                        onClick={() => addShoots(machine.id)}
+                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+                                    >
+                                        Tambah
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                {['RING', 'TIP', 'SLEEVE'].map(partName => {
+                                    const part = machine.parts[partName];
+                                    const limit = PART_LIMITS[partName];
+                                    const percentage = (part.shoots / limit) * 100;
+                                    const status = getPartStatus(part.shoots, limit);
+                                    const StatusIcon = status.Icon;
+
+                                    return (
+                                        <div key={partName} className="bg-slate-800 rounded-xl p-5 border border-slate-700">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h3 className="text-xl font-bold text-white">Part {partName}</h3>
+                                                    <p className="text-slate-400 text-sm">Limit: {limit.toLocaleString()} shoot</p>
+                                                </div>
+                                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${status.color} text-white`}>
+                                                    <StatusIcon size={16} />
+                                                    <span className="font-semibold text-sm">{status.text}</span>
+                                                </div>
+                                            </div>
+                                            <div className="mb-4">
+                                                <div className="flex justify-between text-sm text-slate-300 mb-1">
+                                                    <span>{part.shoots.toLocaleString()} shoot</span>
+                                                    <span>{percentage.toFixed(1)}%</span>
+                                                </div>
+                                                <div className="w-full bg-slate-700 rounded-full h-3">
+                                                    <div
+                                                        className={`h-3 rounded-full transition-all ${status.color}`}
+                                                        style={{ width: `${Math.min(percentage, 100)}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => replacePart(machine.id, partName, false)}
+                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold flex items-center justify-center gap-2"
+                                                >
+                                                    <Wrench size={18} />
+                                                    Ganti Normal
+                                                </button>
+                                                <button
+                                                    onClick={() => replacePart(machine.id, partName, true)}
+                                                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg font-semibold flex items-center justify-center gap-2"
+                                                >
+                                                    <AlertCircle size={18} />
+                                                    Ganti Abnormal
+                                                </button>
+                                            </div>
+                                            <p className="text-slate-400 text-xs mt-3">
+                                                Terakhir diganti: {formatDate(part.lastChanged)}
+                                            </p>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 pb-20">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold text-white">PLUNGER Monitoring</h1>
+                                <p className="text-slate-400 text-sm mt-1">Login: {user.email}</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setView('history')}
+                                    className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                                >
+                                    <History size={20} />
+                                    History
+                                </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                                >
+                                    <LogOut size={20} />
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {machines.map(machine => {
+                                const urgentParts = ['RING', 'TIP', 'SLEEVE'].filter(p => {
+                                    const percentage = (machine.parts[p].shoots / PART_LIMITS[p]) * 100;
+                                    return percentage >= 90;
+                                });
+
+                                return (
+                                    <div
+                                        key={machine.id}
+                                        onClick={() => setSelectedMachine(machine.id)}
+                                        className="bg-slate-800 rounded-xl p-5 border border-slate-700 hover:border-blue-500 cursor-pointer transition-all hover:shadow-xl"
+                                    >
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h2 className="text-xl font-bold text-white">{machine.name}</h2>
+                                                <p className="text-slate-400 text-sm">Total: {machine.totalShoots.toLocaleString()} shoot</p>
+                                            </div>
+                                            {urgentParts.length > 0 && (
+                                                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold animate-pulse">
+                                                    {urgentParts.length} Urgent
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-3">
+                                            {['RING', 'TIP', 'SLEEVE'].map(partName => {
+                                                const part = machine.parts[partName];
+                                                const limit = PART_LIMITS[partName];
+                                                const percentage = (part.shoots / limit) * 100;
+                                                const status = getPartStatus(part.shoots, limit);
+
+                                                return (
+                                                    <div key={partName}>
+                                                        <div className="flex justify-between text-sm mb-1">
+                                                            <span className="text-slate-300 font-semibold">Part {partName}</span>
+                                                            <span className="text-slate-400">{part.shoots.toLocaleString()} / {limit.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-700 rounded-full h-2">
+                                                            <div
+                                                                className={`h-2 rounded-full transition-all ${status.color}`}
+                                                                style={{ width: `${Math.min(percentage, 100)}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<PLUNGERMonitoring />, document.getElementById('root'));
+    </script>
+</body>
+</html>
