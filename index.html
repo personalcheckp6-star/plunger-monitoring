@@ -43,7 +43,7 @@
         const { useState, useEffect } = React;
 
         // ============================================
-        // FIREBASE CONFIG - GANTI DENGAN CONFIG ASLI ANDA
+        // FIREBASE CONFIG - GANTI DENGAN CONFIG ANDA
         // ============================================
         const firebaseConfig = {
   apiKey: "AIzaSyBAu7wDsnb9NcF2aHJPrsh21r1nNMYnWDE",
@@ -125,14 +125,13 @@
         const PLUNGERMonitoring = () => {
             const PART_LIMITS = { RING: 20000, TIP: 120000, SLEEVE: 200000 };
 
-            const [isConfigured, setIsConfigured] = useState(false);
-            const [firebaseApp, setFirebaseApp] = useState(null);
             const [user, setUser] = useState(null);
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [authMode, setAuthMode] = useState('login');
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(true);
+            const [configError, setConfigError] = useState(false);
 
             const [machines, setMachines] = useState([]);
             const [selectedMachine, setSelectedMachine] = useState(null);
@@ -142,15 +141,17 @@
 
             useEffect(() => {
                 const initFirebase = async () => {
-                    if (FIREBASE_CONFIG.apiKey === "xxx" || FIREBASE_CONFIG.apiKey.length < 20) {
-    setLoading(false);
-    return;
-}
-
                     try {
+                        // Cek apakah config sudah diisi
+                        if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY" || 
+                            FIREBASE_CONFIG.apiKey.includes("YOUR_") ||
+                            FIREBASE_CONFIG.apiKey.length < 30) {
+                            setConfigError(true);
+                            setLoading(false);
+                            return;
+                        }
+
                         const app = firebase.initializeApp(FIREBASE_CONFIG);
-                        setFirebaseApp(app);
-                        setIsConfigured(true);
 
                         firebase.auth().onAuthStateChanged((user) => {
                             setUser(user);
@@ -161,7 +162,8 @@
                         });
                     } catch (err) {
                         console.error('Firebase error:', err);
-                        setError('Gagal menginisialisasi Firebase');
+                        setConfigError(true);
+                        setError('Error Firebase: ' + err.message);
                         setLoading(false);
                     }
                 };
@@ -233,7 +235,7 @@
                     } else if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
                         setError('Email atau password salah.');
                     } else {
-                        setError('Terjadi kesalahan. Silakan coba lagi.');
+                        setError('Terjadi kesalahan: ' + err.message);
                     }
                 }
             };
@@ -306,7 +308,7 @@
                 return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             };
 
-            if (!isConfigured) {
+            if (configError) {
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 flex items-center justify-center">
                         <div className="max-w-2xl w-full bg-slate-800 rounded-xl p-8 border border-yellow-500">
@@ -315,20 +317,44 @@
                                 <h1 className="text-2xl font-bold text-white mb-2">Konfigurasi Firebase Diperlukan</h1>
                                 <p className="text-slate-300">Edit file index.html dan masukkan Firebase Config Anda</p>
                             </div>
+
+                            {error && (
+                                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg mb-4 text-sm">
+                                    {error}
+                                </div>
+                            )}
+
                             <div className="bg-slate-900 rounded-lg p-6 mb-6">
                                 <h2 className="text-white font-semibold mb-4">Langkah Setup:</h2>
                                 <ol className="text-slate-300 space-y-3 text-sm list-decimal list-inside">
                                     <li>Buat project di <a href="https://console.firebase.google.com" target="_blank" className="text-blue-400 hover:underline">Firebase Console</a></li>
                                     <li>Aktifkan Authentication (Email/Password)</li>
-                                    <li>Aktifkan Realtime Database</li>
+                                    <li>Aktifkan Realtime Database (region: Singapore)</li>
                                     <li>Set Database Rules (lihat di bawah)</li>
-                                    <li>Copy Firebase Config</li>
-                                    <li>Edit kode dan ganti placeholder FIREBASE_CONFIG</li>
-                                    <li>Upload ulang ke Netlify</li>
+                                    <li>Copy Firebase Config dari Project Settings</li>
+                                    <li>Edit file index.html di GitHub (baris 43-50)</li>
+                                    <li>Commit changes dan tunggu deploy</li>
                                 </ol>
                             </div>
+
+                            <div className="bg-slate-900 rounded-lg p-4 mb-6">
+                                <h3 className="text-white font-semibold mb-2 text-sm">Lokasi Config di File:</h3>
+                                <pre className="text-yellow-400 text-xs overflow-x-auto bg-black p-3 rounded">
+{`// Baris 43-50
+const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyXXXXXXXXXXXXX",  // ← Ganti ini
+    authDomain: "xxx.firebaseapp.com",
+    databaseURL: "https://xxx.firebaseio.com",
+    projectId: "xxx",
+    storageBucket: "xxx.appspot.com",
+    messagingSenderId: "123456",
+    appId: "1:123456:web:xxxxx"
+};`}
+                                </pre>
+                            </div>
+
                             <div className="bg-slate-900 rounded-lg p-4">
-                                <h3 className="text-white font-semibold mb-2 text-sm">Database Rules:</h3>
+                                <h3 className="text-white font-semibold mb-2 text-sm">Database Rules (Copy-Paste):</h3>
                                 <pre className="text-green-400 text-xs overflow-x-auto bg-black p-3 rounded">
 {`{
   "rules": {
@@ -370,6 +396,7 @@
                                     <h1 className="text-3xl font-bold text-white mb-2">PLUNGER Monitoring</h1>
                                     <p className="text-slate-400">System Monitoring Part PLUNGER</p>
                                 </div>
+
                                 <form onSubmit={handleAuth} className="space-y-4">
                                     <div>
                                         <label className="block text-slate-300 text-sm mb-2">Email</label>
@@ -382,6 +409,7 @@
                                             className="w-full px-4 py-3 rounded-lg bg-slate-900 text-white border border-slate-600 focus:border-blue-500 focus:outline-none"
                                         />
                                     </div>
+
                                     <div>
                                         <label className="block text-slate-300 text-sm mb-2">Password</label>
                                         <input
@@ -394,11 +422,13 @@
                                             className="w-full px-4 py-3 rounded-lg bg-slate-900 text-white border border-slate-600 focus:border-blue-500 focus:outline-none"
                                         />
                                     </div>
+
                                     {error && (
                                         <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
                                             {error}
                                         </div>
                                     )}
+
                                     <button
                                         type="submit"
                                         className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
@@ -406,6 +436,7 @@
                                         <LogIn size={20} />
                                         {authMode === 'login' ? 'Login' : 'Daftar'}
                                     </button>
+
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -445,6 +476,7 @@
                                     <LogOut size={20} />
                                 </button>
                             </div>
+
                             <div className="space-y-3">
                                 {history.length === 0 ? (
                                     <div className="bg-slate-800 rounded-lg p-8 text-center text-slate-400">
@@ -501,6 +533,7 @@
                             >
                                 ← Kembali
                             </button>
+
                             <div className="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
                                 <h2 className="text-2xl font-bold text-white mb-2">{machine.name}</h2>
                                 <div className="flex items-center gap-4 text-slate-300">
@@ -510,6 +543,7 @@
                                     </div>
                                 </div>
                             </div>
+
                             <div className="bg-blue-900/50 border border-blue-700 rounded-xl p-4 mb-6">
                                 <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
                                     <TrendingUp size={20} />
@@ -531,6 +565,7 @@
                                     </button>
                                 </div>
                             </div>
+
                             <div className="space-y-4">
                                 {['RING', 'TIP', 'SLEEVE'].map(partName => {
                                     const part = machine.parts[partName];
@@ -551,6 +586,7 @@
                                                     <span className="font-semibold text-sm">{status.text}</span>
                                                 </div>
                                             </div>
+
                                             <div className="mb-4">
                                                 <div className="flex justify-between text-sm text-slate-300 mb-1">
                                                     <span>{part.shoots.toLocaleString()} shoot</span>
@@ -563,6 +599,7 @@
                                                     />
                                                 </div>
                                             </div>
+
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => replacePart(machine.id, partName, false)}
@@ -579,6 +616,7 @@
                                                     Ganti Abnormal
                                                 </button>
                                             </div>
+
                                             <p className="text-slate-400 text-xs mt-3">
                                                 Terakhir diganti: {formatDate(part.lastChanged)}
                                             </p>
@@ -616,6 +654,7 @@
                                 </button>
                             </div>
                         </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {machines.map(machine => {
                                 const urgentParts = ['RING', 'TIP', 'SLEEVE'].filter(p => {
@@ -640,6 +679,7 @@
                                                 </span>
                                             )}
                                         </div>
+
                                         <div className="space-y-3">
                                             {['RING', 'TIP', 'SLEEVE'].map(partName => {
                                                 const part = machine.parts[partName];
@@ -675,7 +715,4 @@
         ReactDOM.render(<PLUNGERMonitoring />, document.getElementById('root'));
     </script>
 </body>
-
 </html>
-
-
