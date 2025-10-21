@@ -10,6 +10,10 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Eruda Console untuk Debug di HP -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -39,14 +43,13 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-
+    <!-- Firebase Config di Global Scope -->
+    <script>
         // ============================================
         // FIREBASE CONFIG - GANTI DENGAN CONFIG ANDA
         // ============================================
-        const firebaseConfig = {
-  apiKey: "AIzaSyBAu7wDsnb9NcF2aHJPrsh21r1nNMYnWDE",
+        window.FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBAu7wDsnb9NcF2aHJPrsh21r1nNMYnWDE",
   authDomain: "plunger-monitoring.firebaseapp.com",
   databaseURL: "https://plunger-monitoring-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "plunger-monitoring",
@@ -54,6 +57,13 @@
   messagingSenderId: "334262322435",
   appId: "1:334262322435:web:0fa820016884f183159536"
 };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Ambil config dari window object
+        const FIREBASE_CONFIG = window.FIREBASE_CONFIG;
 
         // Icons
         const AlertCircle = ({ size = 24, className = "" }) => (
@@ -141,19 +151,29 @@
 
             useEffect(() => {
                 const initFirebase = async () => {
+                    console.log('=== MULAI INIT FIREBASE ===');
+                    console.log('Config API Key:', FIREBASE_CONFIG.apiKey);
+                    console.log('Config API Key Length:', FIREBASE_CONFIG.apiKey.length);
+                    
                     try {
                         // Cek apakah config sudah diisi
                         if (FIREBASE_CONFIG.apiKey === "YOUR_API_KEY" || 
                             FIREBASE_CONFIG.apiKey.includes("YOUR_") ||
                             FIREBASE_CONFIG.apiKey.length < 30) {
+                            console.log('❌ Config belum diisi dengan benar');
                             setConfigError(true);
                             setLoading(false);
                             return;
                         }
 
+                        console.log('✅ Config terdeteksi sudah diisi');
+                        console.log('Mencoba initialize Firebase...');
+                        
                         const app = firebase.initializeApp(FIREBASE_CONFIG);
+                        console.log('✅ Firebase initialized:', app.name);
 
                         firebase.auth().onAuthStateChanged((user) => {
+                            console.log('Auth state changed:', user ? user.email : 'No user');
                             setUser(user);
                             setLoading(false);
                             if (user) {
@@ -161,7 +181,9 @@
                             }
                         });
                     } catch (err) {
-                        console.error('Firebase error:', err);
+                        console.error('❌ Firebase error:', err);
+                        console.error('Error code:', err.code);
+                        console.error('Error message:', err.message);
                         setConfigError(true);
                         setError('Error Firebase: ' + err.message);
                         setLoading(false);
