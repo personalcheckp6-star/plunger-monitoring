@@ -142,10 +142,10 @@
 
             useEffect(() => {
                 const initFirebase = async () => {
-                    if (FIREBASE_CONFIG.apiKey.startsWith("diisi dengan")) {
-                        setLoading(false);
-                        return;
-                    }
+                    if (FIREBASE_CONFIG.apiKey === "xxx" || FIREBASE_CONFIG.apiKey.length < 20) {
+    setLoading(false);
+    return;
+}
 
                     try {
                         const app = firebase.initializeApp(FIREBASE_CONFIG);
@@ -677,4 +677,5 @@
 </body>
 
 </html>
+
 
